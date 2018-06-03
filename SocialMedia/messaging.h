@@ -31,7 +31,7 @@ void send_message(char* user_name,SOCKET s)
 
 	int* request_arr = (int*)malloc(2 * sizeof(int));
 	request_arr[0] = RQ_TYPE_SEND_MSG;
-	request_arr[1] = strlen(user_message) + 40;
+	request_arr[1] = strlen(user_message) + 60;
 
 	send(s, (char*)request_arr, 8, 0);
 
@@ -48,7 +48,7 @@ void send_message(char* user_name,SOCKET s)
 			strcpy(u_message->sender, user_name);
 			strcpy(u_message->receiver, receiver);
 
-			send(s, (char*)u_message, 540, 0);
+			send(s, (char*)u_message, strlen(user_message)+60, 0);
 			
 			printf("Message sent successfully!\n");
 			free(u_message);
@@ -86,8 +86,8 @@ _s_message** extract_messages(char* server_reply,int* len){
 		temp += 4;
 		if (size == -1)
 			break;
-		char* username = (char*)calloc(20 , sizeof(char));
-		for (int i = 0; i < 20; i++)
+		char* username = (char*)calloc(30 , sizeof(char));
+		for (int i = 0; i < 30; i++)
 		{
 			if (((temp[i] >= 'a'&&temp[i] <= 'z') || (temp[i] >= 'A'&&temp[i] <= 'Z') || (temp[i] >= '0'&&temp[i] <= '9') || temp[i] == '_'))
 				username[i] = temp[i];
@@ -96,11 +96,12 @@ _s_message** extract_messages(char* server_reply,int* len){
 				break;
 			}
 		}
-		temp += 20;
+		temp += 30;
 		char* message = (char*)calloc(size + 1, 1);
 		for (int i = 0; i < size; i++)
 			message[i] = temp[i];
 
+		temp += size;
 		_s_message* reply = (_s_message*)malloc(sizeof(_s_message));
 		
 		strcpy(reply->message, username);
@@ -146,15 +147,7 @@ _s_message** get_all_messages(char* user_name, SOCKET s,int* message_count){
 
 }
 
-//server
-FILE* db_fptr;
-int get_user_key(char* user_name){
-	return 0;
-}
 
-char* get_uname(int key){
-	return NULL;
-}
 
 int get_messages_offset()
 {
@@ -175,21 +168,21 @@ char** break_message(char* reply,int size)
 {
 	char** broken_message = (char**)malloc(3 * sizeof(char*));
 
-	char* sender = (char*)calloc(20,1);
-	for (int i = 0; i < 20; i++)
+	char* sender = (char*)calloc(30,1);
+	for (int i = 0; i < 30; i++)
 	{
 		sender[i] = reply[i];
 	}
 	
-	char* receiver = (char*)calloc(20,1);
-	for (int i = 0; i < 20; i++)
+	char* receiver = (char*)calloc(30,1);
+	for (int i = 0; i < 30; i++)
 	{
-		receiver[i] = reply[20 + i];
+		receiver[i] = reply[30 + i];
 	}
-	char* message = (char*)calloc(size - 39, 1);
-	for (int i = 0; i < size - 40; i++)
+	char* message = (char*)calloc(size - 59, 1);
+	for (int i = 0; i < size - 60; i++)
 	{
-		message[i] = reply[40 + i];
+		message[i] = reply[60 + i];
 	}
 	broken_message[0] = sender;
 	broken_message[1] = receiver;
@@ -218,20 +211,20 @@ void insert_message(char** broken_mesage,int size)
 
 	int offset = get_messages_offset();
 	
-	int present_offset = offset + size - 40 + sizeof(message_info);
+	int present_offset = offset + size - 60 + sizeof(message_info);
 	fseek(db_fptr, -(present_offset-4), SEEK_END);
 	int check_size = -1;
 	fwrite(&check_size, 4, 1, db_fptr);
-	fwrite(message, size - 40, 1, db_fptr);
+	fwrite(message, size - 60, 1, db_fptr);
 
 	message_info* info = (message_info*)malloc(sizeof(message_info));
 	info->sender_key = get_user_key(sender);
 	info->receiver_key = get_user_key(receiver);
-	info->size = size-40;
+	info->size = size-60;
 	fwrite(info, sizeof(message_info), 1, db_fptr);
 	free(info);
 	set_messages_offset(present_offset);
-
+	fflush(db_fptr);
 }
 
 void receive_message(SOCKET s, int size)
@@ -242,6 +235,7 @@ void receive_message(SOCKET s, int size)
 	if ((reply_size = recv(s, reply, size + 1, 0)) > 0)
 	{
 		char** broken_message = break_message(reply, size);
+		insert_message(broken_message, size);
 	}
 }
 
@@ -297,11 +291,11 @@ char* get_message_string(_s_message** messages,int message_count,int bytes_size)
 		int size = messages[i]->size;
 		*((int*)message + index) = size;
 		index += 4;
-		for (int i = 0; i < 20; i++)
+		for (int i = 0; i < 30; i++)
 		{
 			message[index + i] = messages[i]->sender[i];
 		}
-		index += 20;
+		index += 30;
 		for (int i = 0; i < size; i++)
 		{
 			message[index + i] = messages[i]->message[i];
@@ -318,9 +312,24 @@ void response_all_messages(SOCKET s,char* user_name)
 	int size_bytes;
 	_s_message** messages = get_user_messages(user_name, &message_count, &size_bytes);
 
-	size_bytes += (20 + 4)*message_count;
-	char* message = get_message_string(messages, message_count,size_bytes);
+	size_bytes += (30 + 4)*message_count;
 
-	send(s, message, size_bytes+4, 0);
-	printf("Messages sent to user!\n");
+	int response[2];
+	response[0] = 1;
+	response[1] = size_bytes+4;
+	send(s, (char*)response, 8, 0);
+
+	char* message = get_message_string(messages, message_count, size_bytes);
+
+	send(s, message, size_bytes+4, 0);/*
+	printf("Messages sent to user!\n");*/
+}
+
+void handle_all_messages(SOCKET s,char* user_name)
+{
+	response_all_messages(s, user_name);
+}
+
+void handle_send_message(SOCKET s, int size){
+	receive_message(s, size);
 }
