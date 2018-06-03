@@ -16,6 +16,16 @@
 #define VIEW_ALL_POSTS_BY_ID 7
 #define VIEW_ALL_COMMENTS 8
 
+#define FILE_SIZE 524022
+#define POST_OFFSET 148480
+#define COMMENT_OFFSET 17408
+#define POST_META_DATA_OFFSET 4
+#define COMMENT_META_DATA_OFFSET 8
+#define MAX_SIZE 512
+#define VIEW_ALL_POSTS 6
+#define VIEW_ALL_POSTS_BY_ID 7
+#define VIEW_ALL_COMMENTS 8
+#define UNKNOWN_SIZE -1
 #define DB_FILE_NAME "db_file.bin"
 
 #include <stdio.h>
@@ -46,6 +56,24 @@ typedef struct user
 	int key;
 }user;
 
+//structure for posts
+typedef struct post
+{
+	int post_id;
+	int user_id;
+	char post_desc[204];
+	char filename[40];
+	int likes;
+	char file[FILE_SIZE];
+} post;
+
+//structure for comments
+typedef struct comment
+{
+	int post_id;
+	int user_id;
+	char comment_string[120];
+} comment;
 
 void init_database()
 {
@@ -149,6 +177,138 @@ char* get_pword(char* uname)
 	return pword;
 }
 
+char *post_to_string(post post_data)
+{
+	char *data = (char *)calloc(MAX_SIZE, sizeof(char));
+	char *temp = (char *)calloc(MAX_SIZE, sizeof(char));
+	if (((char *)&post_data)[0] == -1)
+	{
+		data[0] = -1;
+		return data;
+	}
+	itoa(post_data.post_id, temp, 10);
+	strcpy(data, temp);
+	strcat(data, "|");
+	temp = get_uname(post_data.user_id);
+	strcat(data, temp);
+	strcat(data, "|");
+	strcat(data, post_data.post_desc);
+	strcat(data, "|");
+	strcat(data, post_data.filename);
+	strcat(data, "|");
+	itoa(post_data.likes, temp, 10);
+	strcat(data, temp);
+	strcat(data, "|");
+}
+
+char *get_posts_by_id(int id)
+{
+	static int post_no = 0;
+	int no_of_posts;
+	post post_data;
+	fseek(db_fptr, 4, SEEK_SET);
+	fread(&no_of_posts, sizeof(post), 1, db_fptr);
+	while (true)
+	{
+		fseek(db_fptr, POST_OFFSET + (sizeof(post) * post_no), SEEK_SET);
+		fread(&post_data, sizeof(post), 1, db_fptr);
+		post_no++;
+		if (id == -1)
+			return post_to_string(post_data);
+		else if (post_data.user_id == id)
+			return post_to_string(post_data);
+		else
+			continue;
+	}
+}
+
+char *comment_to_string(comment comment_data)
+{
+	char *data = (char *)calloc(MAX_SIZE, sizeof(char));
+	char *temp = (char *)calloc(MAX_SIZE, sizeof(char));
+	if (((char *)&comment_data)[0] == -1)
+	{
+		data[0] = -1;
+		return data;
+	}
+	strcpy(data, get_uname(comment_data.user_id));
+	strcat(data, "|");
+	strcat(data, comment_data.comment_string);
+	return data;
+}
+
+char *get_comments(int post_id)
+{
+	static int comm_no;
+	int no_of_comms;
+	comment comment_data;
+	fseek(db_fptr, COMMENT_META_DATA_OFFSET, SEEK_SET);
+	fread(&no_of_comms, sizeof(int), 1, db_fptr);
+	while (comm_no < no_of_comms)
+	{
+		fseek(db_fptr, COMMENT_OFFSET + (comm_no * sizeof(comment)), SEEK_SET);
+		fread(&comment_data, sizeof(comment), 1, db_fptr);
+		comm_no++;
+		if (post_id == comment_data.post_id) comment_to_string(comment_data);
+		else continue;
+	}
+}
+
+
+void send_all_posts_by_id(SOCKET s, int flag)
+{
+	int c = sizeof(struct sockaddr_in);
+	int id;
+	struct sockaddr_in client;
+	SOCKET s1;
+	s1 = accept(s, (sockaddr *)&client, &c);
+	if (s1 == INVALID_SOCKET)
+	{
+		printf("accept failed with error code : %d", WSAGetLastError());
+	}
+
+	puts("Connection accepted");
+	char buffer[100];
+	char reply[100];
+	int recvsize = 0;
+	size_t size;
+	int type;
+
+	if ((recvsize = recv(s1, reply, 2, 0)) > 0)
+	{
+		type = ((int *)reply)[0];
+		size = ((int *)reply)[1];
+	}
+	send(s1, "OK", 2, 0);
+	char *username = (char *)calloc(30, sizeof(char));
+	if (!flag)
+		recv(s1, username, 30, 0);
+	else
+		username = "";
+	char *post_data = (char *)calloc(MAX_SIZE, sizeof(char));
+	post_data = get_posts_by_id(id);
+	while (post_data[0] == -1)
+	{
+		post_data = get_posts_by_id(id);
+		if (post_data[0] == -1)
+		{
+			send(s1, &post_data[0], 1, 0);
+			break;
+		}
+		send(s1, post_data, strlen(post_data), 0);
+		post_data = get_comments(atoi(strtok(post_data, "|")));
+		if (post_data[0] == -1)
+		{
+			send(s1, &post_data[0], 1, 0);
+			continue;
+		}
+	}
+}
+
+void send_all_posts(SOCKET s)
+{
+	send_all_posts_by_id(s, 1);
+}
 
 void handle_register(SOCKET s){
 	int response[] = { 1, -1 };
@@ -214,20 +374,24 @@ void handle_send_message(SOCKET s){
 
 }
 
-void handle_get_all_messages(SOCKET s){
+void handle_get_all_messages(SOCKET s)
+{
 
 }
 
-void handle_create_post(SOCKET s){
+void handle_create_post(SOCKET s)
+{
 
 }
 
-void handle_view_all_posts(SOCKET s){
-
+void handle_view_all_posts(SOCKET s)
+{
+	send_all_posts(s);
 }
 
-void handle_view_user_posts(SOCKET s){
-
+void handle_view_user_posts(SOCKET s)
+{
+	send_all_posts_by_id(s, 0);
 }
 
 void handle_requests(SOCKET s,int type, int size)
