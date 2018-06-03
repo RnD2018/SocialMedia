@@ -209,6 +209,19 @@
 //#include<winsock2.h>
 //
 //#pragma comment(lib,"ws2_32.lib") //Winsock Library
+
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
+#define _CRT_SECURE_NO_WARNINGS
+
+#include<stdio.h>
+#include<winsock2.h>
+#include "messaging.h"
+
+#pragma comment(lib,"ws2_32.lib") //Winsock Library
+
+
+
+
 //
 //int main(int argc, char *argv[])
 //{
@@ -275,3 +288,35 @@
 //
 //	return 0;
 //}
+//}
+
+struct x{
+	char user[20];
+};
+int main()
+{
+	/*FILE* fp = fopen("test.txt", "w");
+	fwrite("hai", 4, 1, fp);
+	fclose(fp);
+	printf("Written!\n");
+	system("pause");*//*
+	struct x obj;
+	strcpy(obj.user, "hai");
+
+	printf("%s", obj.user);*/
+
+	/*SOCKET s=NULL;
+	send_message("abhijith", s);*/
+
+	FILE* fp = fopen("test.txt", "rb+");
+	if (fp == NULL)
+	{
+		fp = fopen("test.txt", "wb");
+		fclose(fp);
+		fp = fopen("test.txt", "rb+");
+	}
+	fseek(fp, 1024 * 512 + 148480, SEEK_SET);
+	fwrite("1", 1, 1, fp);
+	fclose(fp);
+	return 0;
+}
