@@ -4,7 +4,7 @@
 #define POST_OFFSET 148480
 #define COMMENT_OFFSET 17408
 #define FILE_SIZE 523264
-#define DB_FILE_NAME "dbfile.bin"
+#define DB_FILE_NAME "db_file.bin"
 #define POST_META_DATA_OFFSET 4
 #define COMMENT_META_DATA_OFFSET 8
 #define MAX_SIZE 512
@@ -38,8 +38,8 @@ typedef struct request
 {
 	int type;
 	int size;
-	char username_self[20];
-	char username_others[20];
+	char username_self[30];
+	char username_others[30];
 } request;
 
 //File handler for database
@@ -188,8 +188,8 @@ void recieve_all_posts_by_id(char *username)
 		server_reply[recv_size] = '\0';
 		printf("Server reply: %s\n", server_reply);
 	}
-	send(*s, "", 1, 0);
-	printf("All posts\n");
+	send(*s, username, strlen(username), 0);
+	printf("All posts - %s\n", username);
 	while (server_reply[0] != EOF && (recv_size = recv(*s, server_reply, 2, 0)) > 0)
 	{
 		server_reply[recv_size] = '\0';
@@ -330,9 +330,10 @@ char *get_comments(int post_id)
 	}
 }
 
-void send_all_posts_by_id(int id)
+void send_all_posts_by_id(int flag)
 {
 	int c = sizeof(struct sockaddr_in);
+	int id;
 	struct sockaddr_in client;
 	SOCKET s1;
 	s1 = accept(*s, (sockaddr *)&client, &c);
@@ -352,8 +353,13 @@ void send_all_posts_by_id(int id)
 	{
 		type = ((int *)reply)[0];
 		size = ((int *)reply)[1];
-		send(s1, "OK", 2, 0);
 	}
+	send(s1, "OK", 2, 0);
+	char *username = (char *)calloc(30, sizeof(char));
+	if (!flag)
+		recv(s1, username, 30, 0);
+	else
+		username = "";
 	char *post_data = (char *)calloc(MAX_SIZE, sizeof(char));
 	post_data = get_posts_by_id(id);
 	while (post_data[0] == -1)
@@ -376,5 +382,5 @@ void send_all_posts_by_id(int id)
 
 void send_all_posts()
 {
-	send_all_posts_by_id(-1);
+	send_all_posts_by_id(1);
 }
