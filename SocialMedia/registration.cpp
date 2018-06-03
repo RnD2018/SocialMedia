@@ -38,7 +38,8 @@ void init_database()
 
 	fseek(db_fptr, 0, SEEK_SET);
 	fwrite((void*)_meta_data, sizeof(meta_data), 1, db_fptr);
-
+	fseek(db_fptr, 1024 * 1024 * 100-1, SEEK_SET);
+	fwrite("1", 1, 1, db_fptr);
 	return;
 }
 
@@ -232,30 +233,30 @@ void utility_func01()
 
 
 
-//int main()
-//{
-//	db_fptr = fopen(db_file_name, "rb+");
-//	if (db_fptr == NULL)
-//	{
-//		db_fptr = fopen(db_file_name, "wb");
-//		fclose(db_fptr);
-//		db_fptr = fopen(db_file_name, "rb+");
-//	}
-//
-//	init_database();
-//
-//	utility_func01();
-//	print_user_data();
-//	update_uname("hari254", "harihari");
-//	update_pword("harihari", "irahirah");
-//	print_user_data();
-//	char* x = get_uname(254);
-//	char* y = get_pword("harihari");
-//	printf("%s\n", x);
-//	printf("%s\n", y);
-//
-//	fclose(db_fptr);
-//
-//	_getch();
-//	return 0;
-//}
+int main()
+{
+	db_fptr = fopen(db_file_name, "rb+");
+	if (db_fptr == NULL)
+	{
+		db_fptr = fopen(db_file_name, "wb");
+		fclose(db_fptr);
+		db_fptr = fopen(db_file_name, "rb+");
+	}
+
+	init_database();
+
+	utility_func01();
+	print_user_data();
+	update_uname("hari254", "harihari");
+	update_pword("harihari", "irahirah");
+	print_user_data();
+	char* x = get_uname(254);
+	char* y = get_pword("harihari");
+	printf("%s\n", x);
+	printf("%s\n", y);
+
+	fclose(db_fptr);
+
+	_getch();
+	return 0;
+}
