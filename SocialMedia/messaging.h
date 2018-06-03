@@ -1,6 +1,7 @@
-#define MESSAGE_META 30
+#define MESSAGE_META 12
 #define RQ_TYPE_SEND_MSG 3
 #define RQ_TYPE_GET_ALL_MSGS 4
+
 /* Client side structure of the message to be sent*/
 typedef struct _message{
 	char sender[20];
@@ -133,6 +134,7 @@ _s_message** get_all_messages(char* user_name, SOCKET s,int* message_count){
 		if (server_reply[0] == 1)
 		{
 			size = server_reply[1];
+			send(s, user_name, 30, 0);
 		}
 	}
 	server_messages = (char*)malloc(size);
