@@ -802,3 +802,311 @@ int main()
 	return 0;
 
 }
+//
+//void insert_message(char** broken_mesage, int size)
+//{
+//	char* sender = broken_mesage[0];
+//	char* receiver = broken_mesage[1];
+//	char* message = broken_mesage[2];
+//
+//	int offset = get_messages_offset();
+//
+//	int present_offset = offset + size - 60 + sizeof(message_info);
+//	fseek(db_fptr, -(present_offset - 4), SEEK_END);
+//	int check_size = -1;
+//	fwrite(&check_size, 4, 1, db_fptr);
+//	fwrite(message, size - 60, 1, db_fptr);
+//
+//	message_info* info = (message_info*)malloc(sizeof(message_info));
+//	info->sender_key = get_user_key(sender);
+//	info->receiver_key = get_user_key(receiver);
+//	info->size = size - 60;
+//	fwrite(info, sizeof(message_info), 1, db_fptr);
+//	free(info);
+//	set_messages_offset(present_offset);
+//
+//}
+//
+//void handle_send_message(SOCKET s,int size){
+//
+//	int response[] = { 1, -1 };
+//	send(s, (char*)response, 8, 0);
+//
+//	char* reply = (char*)malloc(size);
+//	int reply_size;
+//
+//	if ((reply_size = recv(s, reply, size + 1, 0)) > 0)
+//	{
+//		char** broken_message = break_message(reply, size);
+//		insert_message(broken_message, size);
+//	}
+//
+//}
+//
+//
+//
+///* GET ALL MESSAGES */
+///* Structure of the message to be sent from server, for get all messages from user*/
+//typedef struct _s_message{
+//	int size;
+//	char sender[30];
+//	char* message;
+//}_s_message;
+//
+//char* get_uname(int key)
+//{
+//	if (key < 0 || key > 255)
+//	{
+//		return NULL;
+//	}
+//
+//	char* uname = (char*)calloc(UNAME_SIZE, sizeof(char));
+//	user* _user = (user*)calloc(1, sizeof(user));
+//	long offset = key*USER_STRUCT_SIZE + USER_START;
+//
+//	fseek(db_fptr, offset, SEEK_SET);
+//	fread((void*)_user, sizeof(user), 1, db_fptr);
+//
+//	strcpy(uname, _user->uname);
+//
+//	return uname;
+//}
+//
+///* Helper function to extend size of the pointer if exceeded.*/
+//_s_message** extend_size(_s_message** user_messages, int* size){
+//
+//	_s_message** new_user_messages = (_s_message**)malloc(2 * (*size)*sizeof(char*));
+//	for (int i = 0; i < *size; i++)
+//	{
+//		new_user_messages[i] = user_messages[i];
+//	}
+//	*size = 2 * (*size);
+//	return new_user_messages;
+//}
+//
+//_s_message** get_user_messages(char* user_name, int* len, int* total_size){
+//
+//	*len = 50;
+//	*total_size = 0;
+//	_s_message** user_messages = (_s_message**)malloc((*len)*sizeof(char*));
+//	int message_count = 0;
+//
+//	int user_key = get_user_key(user_name);
+//	fseek(db_fptr, 0, SEEK_END);
+//	while (1)
+//	{
+//		fseek(db_fptr, -12, SEEK_CUR);
+//		message_info* info = (message_info*)malloc(sizeof(message_info));
+//		fread(info, 12, 1, db_fptr);
+//		if (info->size == -1)
+//			break;
+//
+//		fseek(db_fptr, -(info->size + 12), SEEK_CUR);
+//
+//		if (info->receiver_key == user_key)
+//		{
+//			char* message = (char*)calloc(info->size + 1, 1);
+//			fread(message, info->size, 1, db_fptr);
+//			fseek(db_fptr, -info->size, SEEK_CUR);
+//			if (message_count >= *len)
+//				extend_size(user_messages, len);
+//
+//			_s_message* reply = (_s_message*)malloc(sizeof(_s_message));
+//			reply->message = message;
+//			strcpy(reply->sender, get_uname(info->sender_key));
+//			reply->size = strlen(message);
+//
+//			user_messages[message_count++] = reply;
+//			*total_size = *total_size + strlen(message);
+//		}
+//	}
+//	*len = message_count;
+//
+//	return user_messages;
+//}
+//
+//char* get_message_string(_s_message** messages, int message_count, int bytes_size)
+//{
+//
+//	char* message = (char*)calloc(bytes_size + 4, 1);
+//	int index = 0;
+//	for (int i = 0; i < message_count; i++)
+//	{
+//		int size = messages[i]->size;
+//		*((int*)message + index) = size;
+//		index += 4;
+//		for (int i = 0; i < 30; i++)
+//		{
+//			message[index + i] = messages[i]->sender[i];
+//		}
+//		index += 30;
+//		for (int i = 0; i < size; i++)
+//		{
+//			message[index + i] = messages[i]->message[i];
+//		}
+//		index += size;
+//	}
+//	*((int*)message + index) = -1;
+//	return message;
+//}
+//
+//void response_all_messages(SOCKET s, char* user_name)
+//{
+//	int message_count;
+//	int size_bytes;
+//	_s_message** messages = get_user_messages(user_name, &message_count, &size_bytes);
+//
+//	size_bytes += (30 + 4)*message_count;
+//	char* message = get_message_string(messages, message_count, size_bytes);
+//
+//	send(s, message, size_bytes + 4, 0);
+//	printf("Messages sent to user!\n");
+//}
+//void handle_get_all_messages(SOCKET s){
+//	int response[] = { 1, -1 };
+//	send(s, (char*)response, 8, 0);
+//	char* reply = (char*)malloc(30);
+//	int size;
+//	if ((size = recv(s, reply, 30, 0)) > 0)
+//	{
+//		response_all_messages(s, reply);
+//	}
+//	
+//}
+//
+//void handle_create_post(SOCKET s){
+//
+//}
+//
+//void handle_view_all_posts(SOCKET s){
+//
+//}
+//
+//void handle_view_user_posts(SOCKET s){
+//
+//}
+//
+//void handle_requests(SOCKET s,int type, int size)
+//{
+//	switch (type)
+//	{
+//	case 1:
+//		handle_register(s);
+//		break;
+//	
+//	case 2:
+//		handle_login(s);
+//		break;
+//		
+//	case 3:
+//		handle_send_message(s,size);
+//		break;
+//
+//	case 4:
+//		handle_get_all_messages(s);
+//		break;
+//
+//	case 5:
+//		handle_create_post(s);
+//		break;
+//
+//	case 6:
+//		handle_view_all_posts(s);
+//		break;
+//
+//	case 7:
+//		handle_view_user_posts(s);
+//		break;
+//
+//	default:
+//		printf("Wrong request type!\n");
+//	}
+//}
+//
+//void accept_request(SOCKET s)
+//{
+//	int c = sizeof(struct sockaddr_in);
+//	struct sockaddr_in client;
+//
+//	SOCKET s1;
+//	s1 = accept(s, (sockaddr*)&client, &c);
+//	if (s1 == INVALID_SOCKET)
+//	{
+//		printf("accept failed with error code : %d", WSAGetLastError());
+//	}
+//
+//	puts("Connection accepted");
+//
+//	int recvsize = 0;
+//	size_t size;
+//	int type;
+//	int reply[2];
+//	if ((recvsize = recv(s1, (char*)reply, 2, 0)) > 0)
+//	{
+//		type = reply[0];
+//		size = reply[1];
+//	}
+//
+//}
+//
+//int listen_to_client(SOCKET* s)
+//{
+//	WSADATA wsa;
+//	struct sockaddr_in server;
+//
+//	if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0)
+//	{
+//		printf("Failed. Error Code : %d", WSAGetLastError());
+//		return 1;
+//	}
+//
+//	printf("Intialization Successful\n");
+//
+//	if ((*s = socket(AF_INET, SOCK_STREAM, 0)) == INVALID_SOCKET)
+//	{
+//		printf("Could not create socket : %d", WSAGetLastError());
+//	}
+//
+//	printf("\nCreated socket successfully\n");
+//
+//	server.sin_family = AF_INET;
+//	server.sin_addr.s_addr = INADDR_ANY;
+//	server.sin_port = htons(8888);
+//
+//	if (bind(*s, (const sockaddr *)&server, sizeof(server)) == SOCKET_ERROR)
+//	{
+//		printf("Bind failed with error code : %d", WSAGetLastError());
+//	}
+//
+//	puts("Bind done");
+//
+//	listen(*s, 5);
+//
+//	puts("Waiting for incoming connections... at ");
+//}
+//
+//int main()
+//{
+//	db_fptr = fopen(DB_FILE_NAME, "rb+");
+//	if (db_fptr == NULL)
+//	{
+//		db_fptr = fopen(DB_FILE_NAME, "wb");
+//		fclose(db_fptr);
+//		db_fptr = fopen(DB_FILE_NAME, "rb+");
+//	}
+//
+//	init_database();
+//	
+//	SOCKET s;
+//
+//	if (listen_to_client(&s))
+//	{
+//		printf("Connection unsuccessful!\n");
+//		return 0;
+//	}
+//
+//	accept_request(s);
+//
+//	return 0;
+//
+//}
